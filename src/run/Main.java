@@ -18,7 +18,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
  
 public class Main extends Application {
@@ -33,17 +32,17 @@ public class Main extends Application {
 
     public void start(final Stage stage) {
  
+        final Group root = new Group();
+        final VBox vBox = new VBox();
         final Canvas canvas = new Canvas(canvasWidth, canvasHeight);
-        canvas.setLayoutX(-canvasWidth/2 + imgWidth/preScale);
-        canvas.setLayoutY(-canvasHeight/2 + imgHeight/preScale);
         final GraphicsContext gc = canvas.getGraphicsContext2D();
-        initDraw(gc);
-        gc.drawImage(new Image(getClass().getResourceAsStream("test1.jpg")), canvas.getWidth()/2 - imgWidth/preScale, canvas.getHeight()/2 - imgHeight/preScale, imgWidth/2, imgHeight/2);    
-        Group root = new Group();
-        VBox vBox = new VBox();
+
+        initCanvas(gc);
+        drawImage("test1.jpg", gc);
         makePannable(root, gc);
-        vBox.getChildren().add(new Button("TEST"));
         makeZoomable(root, canvas);
+
+        vBox.getChildren().add(new Button("TEST"));
         root.getChildren().addAll(canvas, vBox);
         stage.setTitle("Photo");
         //stage.setFullScreen(true);
@@ -56,10 +55,16 @@ public class Main extends Application {
         launch(args);
     }
      
-    private void initDraw(GraphicsContext gc){
+    private void initCanvas(GraphicsContext gc){
+        gc.getCanvas().setLayoutX(-canvasWidth/2 + imgWidth/preScale + 50);
+        gc.getCanvas().setLayoutY(-canvasHeight/2 + imgHeight/preScale + 50);
         gc.setLineWidth(4);
         gc.setStroke(Color.BLACK);
         gc.strokeRect(0, 0, gc.getCanvas().getWidth(), gc.getCanvas().getHeight());
+    }
+
+    private void drawImage(String path, GraphicsContext gc){
+        gc.drawImage(new Image(getClass().getResourceAsStream(path)), gc.getCanvas().getWidth()/2 - imgWidth/preScale, gc.getCanvas().getHeight()/2 - imgHeight/preScale, imgWidth/2, imgHeight/2);
     }
 
     private void makeZoomable(Group g, Canvas canvas){
@@ -75,8 +80,8 @@ public class Main extends Application {
         KeyCombination zoomOut = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
         g.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
             if (zoomOut.match(event)) {
-                canvas.setScaleX(canvas.getScaleX() - (canvas.getScaleX() - 0.2 > 0 ? 0.2 : 0));
-                canvas.setScaleY(canvas.getScaleY() - (canvas.getScaleY() - 0.2 > 0 ? 0.2 : 0));
+                canvas.setScaleX(canvas.getScaleX() - (currentScale - 0.2 > 0 ? 0.2 : 0));
+                canvas.setScaleY(canvas.getScaleY() - (currentScale - 0.2 > 0 ? 0.2 : 0));
                 currentScale = canvas.getScaleX();
             }
         });
@@ -94,6 +99,25 @@ public class Main extends Application {
     private void makePannable(Group g, GraphicsContext gc){
 
         Canvas canvas = gc.getCanvas();
+
+        KeyCombination pan = new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN);
+        g.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
+            if(pan.match(event)){
+                panMode = !panMode;
+                g.setCursor(panMode ? Cursor.HAND : Cursor.DEFAULT);
+            }
+        });
+
+        KeyCombination fitScreen = new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.CONTROL_DOWN);
+        g.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
+            if(fitScreen.match(event)){
+                System.out.println(11111);
+                canvas.setTranslateX(0);
+                canvas.setTranslateY(0);
+                canvas.setScaleX(1);
+                canvas.setScaleY(1);
+            }
+        });
 
         g.addEventFilter(KeyEvent.KEY_PRESSED, event->{
             if (event.getCode() == KeyCode.SPACE) {
@@ -118,6 +142,17 @@ public class Main extends Application {
                     g.setCursor(Cursor.CLOSED_HAND);
                     pressedX = event.getX();
                     pressedY = event.getY();
+                }
+                event.consume();
+            }
+        });
+
+        canvas.setOnMouseReleased(new EventHandler<MouseEvent>()
+        {
+            public void handle(MouseEvent event)
+            {
+                if(isPanningMode()){
+                    g.setCursor(Cursor.HAND);
                 }
                 event.consume();
             }

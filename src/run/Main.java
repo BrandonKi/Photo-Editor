@@ -1,7 +1,5 @@
 package src.run;
 
-import javax.tools.Tool;
-
 import javafx.application.Application;
 import javafx.event.EventHandler;
 import javafx.geometry.Dimension2D;
@@ -29,6 +27,7 @@ import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
@@ -37,13 +36,16 @@ import javafx.stage.Stage;
 import position.Delta;
 
 import java.awt.Toolkit;
+
 import java.awt.Dimension;
 
 public class Main extends Application {
 
     Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
     final double SCREEN_HEIGHT = screenSize.getHeight(), SCREEN_WIDTH = screenSize.getWidth();
+    Node cursorNode;
 
+    private boolean customCursor = false;
 
     private double pressedX, pressedY;
     private boolean isPressed = false;
@@ -57,21 +59,21 @@ public class Main extends Application {
 
     public void start(final Stage stage) {
  
-        final Group root = new Group();
+        cursorNode = new ImageView();
+        Group root = new Group();
         final Canvas canvas = new Canvas(canvasWidth, canvasHeight);
         final GraphicsContext gc = canvas.getGraphicsContext2D();
         final HBox taskBar = new HBox();
         final VBox toolBar = new VBox();
 
-
+        initCursor(root);
         initCanvas(gc);
         drawImage("test1.jpg", gc);
         makePannable(root, gc);
         makeZoomable(root, canvas);
         initTaskBar(taskBar, gc);
         initToolBar(toolBar, gc);
-
-        root.getChildren().addAll(canvas, toolBar, taskBar);
+        root.getChildren().addAll(canvas, toolBar, taskBar, cursorNode);
         stage.setTitle("Photo");
         //stage.setFullScreen(true);
         //stage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
@@ -84,23 +86,44 @@ public class Main extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
+    private void initCursor(Group root){
+        Image cImg = new Image("src\\resource\\scalable_circle.png");
+        cursorNode = new ImageView(cImg);
+        root.setOnMouseMoved(e -> {
+            System.out.println(drawMode + " " + panMode);
+            //if(drawMode){
+                cursorNode.setVisible(true);
+                root.setCursor(Cursor.NONE);
+                System.out.println(cursorNode.getTranslateX() + " " + cursorNode.getTranslateY());
+                cursorNode.setTranslateX(e.getX() - cImg.getWidth()/2);
+                cursorNode.setTranslateY(e.getY() - cImg.getHeight()/2);
+            // }else
+            //     cursorNode.setVisible(false);
+        });
+    }
      
     private void initTaskBar(HBox taskBar, GraphicsContext gc){
 
     }
 
+
+
     private void initToolBar(VBox toolBar, GraphicsContext gc){
         toolBar.setTranslateY(toolBar.getLayoutY() + 70);
-        toolBar.setStyle("-fx-border-color: #000000;");
+        toolBar.setStyle("-fx-border-color: #000000; -fx-border-radius: 10 10 10 10;");
         toolBar.setSpacing(5);
 
         Rectangle handle = new Rectangle(0, 0, 40, 25);
         handle.setFill(Color.rgb(40, 40, 40));
+        handle.setArcHeight(10);
+        handle.setArcWidth(10);
         makeDraggableByChild(handle, toolBar);
 
         Button panModeButton = new Button();
         styleButton(panModeButton, "src\\resource\\mouse_hand_open.png");
         panModeButton.setOnMousePressed(e -> {
+            setAllModesFalse();
             panMode = !panMode;
             if(panMode)
                 gc.getCanvas().setCursor(Cursor.HAND);
@@ -110,13 +133,18 @@ public class Main extends Application {
 
         Button drawModeButton = new Button();
         styleButton(drawModeButton, "src\\resource\\mouse_hand_open.png");
-        panModeButton.setOnMouseClicked(e -> {
+        drawModeButton.setOnMouseClicked(e -> {
+            setAllModesFalse();
             drawMode = !drawMode;
-            gc.getCanvas().setCursor(new ImageCursor(new Image(getClass().getResourceAsStream("test1.jpg")), 64, 64));
+            setCursor(new Image("src\\resource\\scalable_circle.png"));
         });
 
         toolBar.getChildren().addAll(handle, panModeButton, drawModeButton);
         
+    }
+
+    private void setCursor(Image cursor){
+        cursorNode = new ImageView(cursor);
     }
 
     private void styleButton(Button b, String imgPath){
@@ -257,7 +285,7 @@ public class Main extends Application {
             }
         });
 
-        g.addEventFilter(KeyEvent.KEY_RELEASED, event->{
+        g.addEventFilter(KeyEvent.KEY_PRESSED, event->{
             if (event.getCode() == KeyCode.SPACE) {
                 panMode = false;
                 canvas.setCursor(Cursor.DEFAULT);

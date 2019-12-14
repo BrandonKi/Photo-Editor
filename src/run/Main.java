@@ -31,6 +31,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import position.Delta;
@@ -59,14 +60,13 @@ public class Main extends Application {
 
     public void start(final Stage stage) {
  
-        cursorNode = new ImageView();
         Group root = new Group();
         final Canvas canvas = new Canvas(canvasWidth, canvasHeight);
         final GraphicsContext gc = canvas.getGraphicsContext2D();
         final HBox taskBar = new HBox();
         final VBox toolBar = new VBox();
 
-        initCursor(root);
+        initCursor(gc);
         initCanvas(gc);
         drawImage("test1.jpg", gc);
         makePannable(root, gc);
@@ -87,19 +87,14 @@ public class Main extends Application {
         launch(args);
     }
 
-    private void initCursor(Group root){
+    private void initCursor(GraphicsContext gc){
         Image cImg = new Image("src\\resource\\scalable_circle.png");
         cursorNode = new ImageView(cImg);
-        root.setOnMouseMoved(e -> {
-            System.out.println(drawMode + " " + panMode);
-            //if(drawMode){
-                cursorNode.setVisible(true);
-                root.setCursor(Cursor.NONE);
-                System.out.println(cursorNode.getTranslateX() + " " + cursorNode.getTranslateY());
-                cursorNode.setTranslateX(e.getX() - cImg.getWidth()/2);
-                cursorNode.setTranslateY(e.getY() - cImg.getHeight()/2);
-            // }else
-            //     cursorNode.setVisible(false);
+        gc.getCanvas().setOnMouseMoved(e -> {
+            cursorNode.setVisible(true);
+            System.out.println(cursorNode.getTranslateX() + " " + cursorNode.getTranslateY());
+            cursorNode.setTranslateX(e.getX() );//- cImg.getWidth()/2);
+            cursorNode.setTranslateY(e.getY() );//- cImg.getHeight()/2);
         });
     }
      
@@ -112,19 +107,30 @@ public class Main extends Application {
     private void initToolBar(VBox toolBar, GraphicsContext gc){
         toolBar.setTranslateY(toolBar.getLayoutY() + 70);
         toolBar.setStyle("-fx-border-color: #000000; -fx-border-radius: 10 10 10 10;");
-        toolBar.setSpacing(5);
-
-        Rectangle handle = new Rectangle(0, 0, 40, 25);
-        handle.setFill(Color.rgb(40, 40, 40));
-        handle.setArcHeight(10);
-        handle.setArcWidth(10);
+        toolBar.setSpacing(3);
+        toolBar.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), new CornerRadii(10), Insets.EMPTY)));
+        Pane handle = new Pane();
+        Rectangle base = new Rectangle(0, 0, 40, 25);
+        base.setFill(Color.rgb(40, 40, 40));
+        base.setArcWidth(10);
+        base.setArcHeight(10);
+        Color lineColor = Color.rgb(255, 255, 255);
+        Line l1 = new Line(7, 5, 33, 5);
+        l1.setStroke(lineColor);
+        Line l2 = new Line(7, 12, 33, 12);
+        l2.setStroke(lineColor);
+        Line l3 = new Line(7, 19, 33, 19);
+        l3.setStroke(lineColor);
+        handle.getChildren().addAll(base, l1, l2, l3);
         makeDraggableByChild(handle, toolBar);
 
         Button panModeButton = new Button();
         styleButton(panModeButton, "src\\resource\\mouse_hand_open.png");
         panModeButton.setOnMousePressed(e -> {
-            setAllModesFalse();
-            panMode = !panMode;
+            if(panMode)
+                setAllModesFalse();
+            else
+                panMode = !panMode;
             if(panMode)
                 gc.getCanvas().setCursor(Cursor.HAND);
             else if(!panMode)   
@@ -134,9 +140,10 @@ public class Main extends Application {
         Button drawModeButton = new Button();
         styleButton(drawModeButton, "src\\resource\\mouse_hand_open.png");
         drawModeButton.setOnMouseClicked(e -> {
-            setAllModesFalse();
-            drawMode = !drawMode;
-            setCursor(new Image("src\\resource\\scalable_circle.png"));
+            if(drawMode)
+                setAllModesFalse();
+            else
+                drawMode = !drawMode;
         });
 
         toolBar.getChildren().addAll(handle, panModeButton, drawModeButton);
@@ -262,7 +269,10 @@ public class Main extends Application {
         KeyCombination pan = new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN);
         g.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
             if(pan.match(event)){
-                panMode = !panMode;
+                if(panMode)
+                    setAllModesFalse();
+                else
+                    panMode = !panMode;
                 canvas.setCursor(panMode ? Cursor.HAND : Cursor.DEFAULT);
             }
         });
@@ -285,7 +295,7 @@ public class Main extends Application {
             }
         });
 
-        g.addEventFilter(KeyEvent.KEY_PRESSED, event->{
+        g.addEventFilter(KeyEvent.KEY_RELEASED, event->{
             if (event.getCode() == KeyCode.SPACE) {
                 panMode = false;
                 canvas.setCursor(Cursor.DEFAULT);
@@ -323,7 +333,6 @@ public class Main extends Application {
             public void handle(MouseEvent event)
             {
                 if(isPanningMode()){
-                    canvas.setCursor(Cursor.CLOSED_HAND);
                     canvas.setTranslateX(canvas.getTranslateX() + event.getX() - pressedX);
                     canvas.setTranslateY(canvas.getTranslateY() + event.getY() - pressedY);
                 }

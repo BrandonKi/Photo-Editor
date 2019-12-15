@@ -417,7 +417,7 @@ public class Main extends Application {
     private void saveImage(Canvas canvas){
         WritableImage bounds = new WritableImage((int)imgWidth, (int)imgHeight);
         SnapshotParameters sp = new SnapshotParameters();
-        sp.setViewport(new Rectangle2D(0, 0, imgWidth, imgHeight));
+        sp.setViewport(new Rectangle2D(0 + 40, 0 + 80, imgWidth, imgHeight)); // hard-coded values 40 & 80 for x and y respectivly
         WritableImage snapshot = canvas.snapshot(sp, bounds);
         try{
             ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", new File(System.getProperty("user.dir") + "\\test.png"));

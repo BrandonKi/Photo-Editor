@@ -59,21 +59,27 @@ public class Main extends Application {
     private boolean drawMode = false;
 
     private double currentScale = 1;
-    private double imgWidth = 1920, imgHeight = 1200;
-    private double canvasWidth = imgWidth > imgHeight ? imgWidth * 2 : imgHeight * 2, canvasHeight = canvasWidth;
+    private double imgWidth, imgHeight;
+    private double canvasWidth, canvasHeight;
     //private int preScale = 1; never again
 
     public void start(final Stage stage) {
+
+        String imgName = "test3.jpg";
  
         Group root = new Group();
-        final Canvas canvas = new Canvas(canvasWidth, canvasHeight);
-        final GraphicsContext gc = canvas.getGraphicsContext2D();
+        
         final HBox taskBar = new HBox();
         final VBox toolBar = new VBox();
 
+        initImage(imgName);
         initCursor(root);
+
+        final Canvas canvas = new Canvas(canvasWidth, canvasHeight);
+        final GraphicsContext gc = canvas.getGraphicsContext2D();
+
         initCanvas(gc);
-        drawImage("test1.jpg", gc);
+        drawImage(imgName, gc);
         makePannable(root, gc);
         makeZoomable(root, canvas);
         makeDrawable(root, canvas);
@@ -94,6 +100,14 @@ public class Main extends Application {
  
     public static void main(String[] args) {
         launch(args);
+    }
+
+    private void initImage(String path){
+        Image img = new Image(getClass().getResourceAsStream(path));
+        imgWidth = img.getWidth();
+        imgHeight = img.getHeight();
+        canvasWidth = imgWidth > imgHeight ? imgWidth * 2 : imgHeight * 2; 
+        canvasHeight = canvasWidth;
     }
 
     private void initCursor(Group g){
@@ -193,11 +207,10 @@ public class Main extends Application {
     }
 
     private void resizeDrawCursor(boolean increase){  // true = increase false = decrease
-        if (increase){
-            cImg = new Image("src\\resource\\scalable_circle.png", ++cImgWidth, ++cImgHeight, false, false);
-            // cursorNode.setTranslateX(cursorNode.getLayoutX() + cursorNode.getTranslateX() - cImgWidth/2);
-            // cursorNode.setTranslateY(cursorNode.getLayoutY() + cursorNode.getTranslateY() - cImgHeight/2);
-        }
+        if (increase)
+            cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth+=2, cImgHeight+=2, false, false);
+        else    
+            cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth-=2, cImgHeight-=2, false, false);
         cursorNode.setImage(cImg);
     }
 
@@ -293,7 +306,7 @@ public class Main extends Application {
         imgWidth = img.getWidth();
         imgHeight = img.getHeight();
         bImg = SwingFXUtils.fromFXImage(img, null);
-        gc.drawImage(img, gc.getCanvas().getWidth()/2 - imgWidth/2 + 40, gc.getCanvas().getHeight()/2 - imgHeight/2 + 80, imgWidth, imgHeight);
+        gc.drawImage(img, gc.getCanvas().getWidth()/2 - imgWidth/2, gc.getCanvas().getHeight()/2 - imgHeight/2);
     }
 
     private void makeZoomable(Group g, Canvas canvas){
@@ -337,8 +350,7 @@ public class Main extends Application {
                 if(panMode)
                     setAllModesFalse();
                 else{
-                    if(drawMode)
-                        hideDrawCursor();
+                    setAllModesFalse();
                     panMode = true;
                 }
                 canvas.setCursor(panMode ? Cursor.HAND : Cursor.DEFAULT);
@@ -403,6 +415,15 @@ public class Main extends Application {
             }
         });
 
+        root.addEventFilter(KeyEvent.KEY_PRESSED, event->{
+            if (event.getCode() == KeyCode.OPEN_BRACKET) {
+                if(isDrawingMode()){
+                    showDrawCursor();
+                    resizeDrawCursor(false);
+                }
+            }
+        });
+
         canvas.setOnMouseMoved(e -> {
             if(drawMode && !tempPanMode){
                 showDrawCursor();
@@ -416,13 +437,15 @@ public class Main extends Application {
 
     private void saveImage(Canvas canvas){
         WritableImage bounds = new WritableImage((int)imgWidth, (int)imgHeight);
+        System.out.println(imgWidth + "  " + imgHeight);
         SnapshotParameters sp = new SnapshotParameters();
-        System.out.println((canvasWidth/4 - imgWidth/2) + " " + (canvasHeight/4  - imgHeight/2) + " " + canvasWidth/2 + " " + canvasHeight/2);
-        sp.setViewport(new Rectangle2D(canvasWidth/4 - imgWidth/2 + 40, canvasHeight/4 - imgHeight/2 + 80, canvasWidth/2, canvasHeight/2)); // hard-coded values 40 & 80 for x and y respectivly
+        System.out.println((canvasWidth/2 - imgWidth/2 - canvas.getTranslateX()) + " " + (canvasHeight/2 - imgHeight/2 - canvas.getTranslateY()) + " " + imgWidth + " " + imgHeight);
+        sp.setViewport(new Rectangle2D(canvas.getLayoutX() + imgWidth/2, canvas.getLayoutY() + imgWidth/2, imgWidth/2, imgWidth/2)); // hard-coded values 40 & 80 for x and y respectivly
+        System.out.println(currentScale);
         WritableImage snapshot = canvas.snapshot(sp, bounds);
         try{
             ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", new File(System.getProperty("user.dir") + "\\test.png"));
-        }catch(Exception e){ 
+        }catch(Exception e){  
             e.printStackTrace();
         }
     }
@@ -450,6 +473,8 @@ public class Main extends Application {
     private void initCanvasPressedListener(Canvas canvas){
         GraphicsContext gc = canvas.getGraphicsContext2D();
         canvas.setOnMousePressed(e -> {
+            System.out.println(e.getSceneX() + ", " + e.getSceneY());
+            System.out.println(e.getX() + ", " + e.getY());
             if(isPanningMode()){
                 isPressed = true;
                 canvas.setCursor(Cursor.CLOSED_HAND);

@@ -14,6 +14,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
+import javafx.scene.ImageCursor;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
@@ -56,9 +57,10 @@ public class Main extends Application {
     private boolean isPressed = false;
     private boolean panMode = false, tempPanMode = false;
     private boolean drawMode = false;
+    private boolean eyedropperMode = false;
 
     private ColorPicker colorPicker = new ColorPicker();
-    private Button drawModeButton, panModeButton;
+    private Button drawModeButton, panModeButton, eyedropperModeButton;
 
     private double currentScale = 1;
     private double imgWidth, imgHeight;
@@ -200,7 +202,22 @@ public class Main extends Application {
             eventTriggered();
         });
 
-        toolBar.getChildren().addAll(handle, panModeButton, drawModeButton);
+        eyedropperModeButton = new Button();
+        styleButton(eyedropperModeButton, "src\\resource\\eyedropper.png", 0, 0, 22, 25);
+        eyedropperModeButton.setOnMousePressed(e -> {
+            if(eyedropperMode){
+                setAllModesFalse();
+                gc.getCanvas().setCursor(Cursor.DEFAULT);
+            }
+            else{
+                setAllModesFalse();
+                eyedropperMode = true;
+                gc.getCanvas().setCursor(new ImageCursor(new Image("src\\resource\\eyedropper.png")));
+            }
+            eventTriggered();
+        });
+
+        toolBar.getChildren().addAll(handle, panModeButton, drawModeButton, eyedropperModeButton);
         
     }
 
@@ -250,6 +267,7 @@ public class Main extends Application {
     private void setAllModesFalse(){
         panMode = false;
         drawMode = false;
+        eyedropperMode = false;
     }
 
     private boolean allModesFalse(){
@@ -314,7 +332,7 @@ public class Main extends Application {
         gc.getCanvas().setLayoutX(-canvasWidth/2 + SCREEN_WIDTH/2);
         gc.getCanvas().setLayoutY(-canvasHeight/2 + SCREEN_HEIGHT/2);
         gc.setLineWidth(4);
-        gc.setStroke(Color.BLACK);
+        gc.setStroke(colorPicker.getValue());
         gc.strokeRect(0, 0, gc.getCanvas().getWidth(), gc.getCanvas().getHeight());
     }
 
@@ -464,7 +482,7 @@ public class Main extends Application {
         System.out.println(imgWidth + "  " + imgHeight);
         SnapshotParameters sp = new SnapshotParameters();
         System.out.println(canvas.getLayoutX() + " " + canvas.getLayoutY());
-        sp.setViewport(new Rectangle2D(canvas.getLayoutX() + canvas.getTranslateX() + imgWidth/2 + (imgWidth < imgHeight ? imgHeight - imgWidth : 0), canvas.getLayoutY() + canvas.getTranslateY()+ imgHeight/2 + (imgWidth > imgHeight ? imgWidth - imgHeight : 0), imgWidth/2, imgHeight)); // (imgWidth > imgHeight ? imgWidth - imgHeight : 0)
+        sp.setViewport(new Rectangle2D(canvas.getLayoutX() + canvas.getTranslateX() + imgWidth/2 + (imgWidth < imgHeight ? imgHeight - imgWidth : 0), canvas.getLayoutY() + canvas.getTranslateY()+ imgHeight/2 + (imgWidth > imgHeight ? imgWidth - imgHeight : 0), imgWidth/2, imgHeight));
         System.out.println(currentScale);
         WritableImage snapshot = canvas.snapshot(sp, bounds);
         try{
@@ -503,11 +521,19 @@ public class Main extends Application {
                 pressedX = e.getX();
                 pressedY = e.getY();
             }
-            if(isDrawingMode() && !tempPanMode){
+            else if(isDrawingMode()){
                 showDrawCursor();
+                gc.setFill(colorPicker.getValue());
                 cursorNode.setTranslateX(e.getSceneX() - cImgWidth/2);
                 cursorNode.setTranslateY(e.getSceneY() - cImgHeight/2);
                 gc.fillOval(e.getX() - cImgWidth/2, e.getY() - cImgHeight/2, cImgWidth, cImgHeight);
+            }
+            else if(isEyedropperMode()){
+                WritableImage img = new WritableImage((int)canvasWidth, (int)canvasHeight);
+                canvas.snapshot(new SnapshotParameters(), img);
+                PixelReader temp = img.getPixelReader();
+                int tempInt = temp.getArgb((int)(e.getX()), (int)(e.getY()));
+                colorPicker.setValue(Color.rgb(((tempInt >> 16) & 0xff), ((tempInt >> 8) & 0xff), (tempInt & 0xff)));
             }
             e.consume();
         });
@@ -530,13 +556,22 @@ public class Main extends Application {
         return drawMode;
     }
 
+    private boolean isEyedropperMode(){
+        return eyedropperMode;
+    }
+
     private void eventTriggered(){
         drawModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
         panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
+        eyedropperModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
+
         if (isPanningMode()){
             panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
         }      
         if(isDrawingMode())
             drawModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
+
+        else if(isEyedropperMode())
+            eyedropperModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
     }
 }

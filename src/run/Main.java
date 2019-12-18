@@ -1,11 +1,13 @@
 package src.run;
 
-import javafx.application.Application;
+import java.awt.Dimension;
+import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
 import javax.imageio.ImageIO;
 
+import javafx.application.Application;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -18,6 +20,7 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
@@ -40,10 +43,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import position.Delta;
 
-import java.awt.Toolkit;
-
-import java.awt.Dimension;
-
 public class Main extends Application {
 
     private Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -57,6 +56,9 @@ public class Main extends Application {
     private boolean isPressed = false;
     private boolean panMode = false, tempPanMode = false;
     private boolean drawMode = false;
+
+    private ColorPicker colorPicker = new ColorPicker();
+    private Button drawModeButton, panModeButton;
 
     private double currentScale = 1;
     private double imgWidth, imgHeight;
@@ -122,7 +124,13 @@ public class Main extends Application {
     }
      
     private void initTaskBar(HBox taskBar, GraphicsContext gc){
-
+        taskBar.setTranslateX(taskBar.getLayoutX() + 70);
+        taskBar.setStyle("-fx-border-color: #000000; -fx-border-radius: 10 10 10 10;");
+        taskBar.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), new CornerRadii(10), Insets.EMPTY)));
+        colorPicker.getStyleClass().add("button");
+        colorPicker.setStyle("-fx-background-color: #669999; -fx-background-radius: 0 15 15 0; ");
+        styleColorPicker(colorPicker, 0, 0, 25, 25);
+        taskBar.getChildren().addAll(colorPicker);
     }
 
 
@@ -163,7 +171,7 @@ public class Main extends Application {
         handle.getChildren().addAll(base, l1, l2, l3);
         makeDraggableByChild(handle, toolBar);
 
-        Button panModeButton = new Button();
+        panModeButton = new Button();
         styleButton(panModeButton, "src\\resource\\mouse_hand_open.png", 3, 0, 22, 25);
         panModeButton.setOnMousePressed(e -> {
             if(panMode){
@@ -173,11 +181,12 @@ public class Main extends Application {
                 setAllModesFalse();
                 panMode = true;
             }
+            eventTriggered();
             gc.getCanvas().setCursor(panMode ? Cursor.HAND : Cursor.DEFAULT);
         });
 
-        Button drawModeButton = new Button();
-        styleButton(drawModeButton, "src\\resource\\brush.png", 0, 0, 25, 25);
+        drawModeButton = new Button();
+        styleButton(drawModeButton, "src\\resource\\brush.png", 0, 0, 22, 25);
         drawModeButton.setOnMousePressed(e -> {
             if(drawMode){
                 setAllModesFalse();
@@ -188,6 +197,7 @@ public class Main extends Application {
                 drawMode = true;
                 gc.getCanvas().setCursor(Cursor.CROSSHAIR);
             }
+            eventTriggered();
         });
 
         toolBar.getChildren().addAll(handle, panModeButton, drawModeButton);
@@ -227,6 +237,13 @@ public class Main extends Application {
         b.setGraphic(panIcon);
         b.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), new CornerRadii(10), Insets.EMPTY)));
         b.setStyle("-fx-border-color: #ffffff; -fx-border-width: 1px; -fx-border-radius: 10 10 10 10");
+        b.setMaxSize(x + width + 5, y + height + 5);
+    }
+
+    private void styleColorPicker(ColorPicker b, int x, int y, int width, int height){
+        b.setMinSize(25, 25);
+        b.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
+        b.setStyle("-fx-border-color: #ffffff; -fx-border-width: 1px;");
         b.setMaxSize(x + width + 5, y + height + 5);
     }
 
@@ -370,6 +387,7 @@ public class Main extends Application {
         g.addEventFilter(KeyEvent.KEY_PRESSED, event->{
             if (event.getCode() == KeyCode.SPACE) {
                 tempPanMode = true;
+                eventTriggered();
                 if(!isPressed){
                     canvas.setCursor(Cursor.HAND);
                     if(isDrawingMode())
@@ -381,6 +399,7 @@ public class Main extends Application {
         g.addEventFilter(KeyEvent.KEY_RELEASED, event->{
             if (event.getCode() == KeyCode.SPACE) {
                 tempPanMode = false;
+                eventTriggered();
                 canvas.setCursor(Cursor.DEFAULT);
                 if(isDrawingMode()){
                     showDrawCursor();
@@ -405,6 +424,11 @@ public class Main extends Application {
     }
 
     private void makeDrawable(Group root, Canvas canvas){
+
+        colorPicker.setValue(Color.BLACK);
+        colorPicker.setOnAction(e -> {
+            canvas.getGraphicsContext2D().setFill(colorPicker.getValue());               
+        });
 
         root.addEventFilter(KeyEvent.KEY_PRESSED, event->{
             if (event.getCode() == KeyCode.CLOSE_BRACKET) {
@@ -439,8 +463,8 @@ public class Main extends Application {
         WritableImage bounds = new WritableImage((int)imgWidth, (int)imgHeight);
         System.out.println(imgWidth + "  " + imgHeight);
         SnapshotParameters sp = new SnapshotParameters();
-        System.out.println((canvasWidth/2 - imgWidth/2 - canvas.getTranslateX()) + " " + (canvasHeight/2 - imgHeight/2 - canvas.getTranslateY()) + " " + imgWidth + " " + imgHeight);
-        sp.setViewport(new Rectangle2D(canvas.getLayoutX() + imgWidth/2, canvas.getLayoutY() + imgWidth/2, imgWidth/2, imgWidth/2)); // hard-coded values 40 & 80 for x and y respectivly
+        System.out.println(canvas.getLayoutX() + " " + canvas.getLayoutY());
+        sp.setViewport(new Rectangle2D(canvas.getLayoutX() + canvas.getTranslateX() + imgWidth/2 + (imgWidth < imgHeight ? imgHeight - imgWidth : 0), canvas.getLayoutY() + canvas.getTranslateY()+ imgHeight/2 + (imgWidth > imgHeight ? imgWidth - imgHeight : 0), imgWidth/2, imgHeight)); // (imgWidth > imgHeight ? imgWidth - imgHeight : 0)
         System.out.println(currentScale);
         WritableImage snapshot = canvas.snapshot(sp, bounds);
         try{
@@ -452,7 +476,6 @@ public class Main extends Application {
 
     private void initCanvasDragListener(Canvas canvas){
         GraphicsContext gc = canvas.getGraphicsContext2D();
-
         canvas.setOnMouseDragged(e -> {
         if(isPanningMode()){
             canvas.setTranslateX(canvas.getTranslateX() + e.getX() - pressedX);
@@ -473,8 +496,7 @@ public class Main extends Application {
     private void initCanvasPressedListener(Canvas canvas){
         GraphicsContext gc = canvas.getGraphicsContext2D();
         canvas.setOnMousePressed(e -> {
-            System.out.println(e.getSceneX() + ", " + e.getSceneY());
-            System.out.println(e.getX() + ", " + e.getY());
+            eventTriggered();
             if(isPanningMode()){
                 isPressed = true;
                 canvas.setCursor(Cursor.CLOSED_HAND);
@@ -506,5 +528,15 @@ public class Main extends Application {
 
     private boolean isDrawingMode(){
         return drawMode;
+    }
+
+    private void eventTriggered(){
+        drawModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
+        panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
+        if (isPanningMode()){
+            panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
+        }      
+        if(isDrawingMode())
+            drawModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
     }
 }

@@ -61,6 +61,7 @@ public class Main extends Application {
 
     private ColorPicker colorPicker = new ColorPicker();
     private Button drawModeButton, panModeButton, eyedropperModeButton;
+    private PixelReader tempPR;
 
     private double currentScale = 1;
     private double imgWidth, imgHeight;
@@ -212,7 +213,7 @@ public class Main extends Application {
             else{
                 setAllModesFalse();
                 eyedropperMode = true;
-                gc.getCanvas().setCursor(new ImageCursor(new Image("src\\resource\\eyedropper.png")));
+                gc.getCanvas().setCursor(Cursor.CROSSHAIR);
             }
             eventTriggered();
         });
@@ -235,9 +236,9 @@ public class Main extends Application {
 
     private void resizeDrawCursor(boolean increase){  // true = increase false = decrease
         if (increase)
-            cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth+=2, cImgHeight+=2, false, false);
+            cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth+=3, cImgHeight+=3, false, false);
         else    
-            cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth-=2, cImgHeight-=2, false, false);
+            cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth-=3, cImgHeight-=3, false, false);
         cursorNode.setImage(cImg);
     }
 
@@ -348,24 +349,26 @@ public class Main extends Application {
         KeyCombination zoomIn = new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN);
         g.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
             if (zoomIn.match(event)) {
-                canvas.setScaleX(canvas.getScaleX() + 0.2);
-                canvas.setScaleY(canvas.getScaleY() + 0.2);
+                canvas.setScaleX(canvas.getScaleX() + 0.4);
+                canvas.setScaleY(canvas.getScaleY() + 0.4);
                 currentScale = canvas.getScaleX();
+                rescaleDrawCursor(currentScale);
             }
         });
 
         KeyCombination zoomOut = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
         g.addEventHandler(KeyEvent.KEY_RELEASED, event -> {
             if (zoomOut.match(event)) {
-                canvas.setScaleX(canvas.getScaleX() - (currentScale - 0.2 > 0.6 ? 0.2 : 0));
-                canvas.setScaleY(canvas.getScaleY() - (currentScale - 0.2 > 0.6 ? 0.2 : 0));
+                canvas.setScaleX(canvas.getScaleX() - (currentScale - 0.4 > 0.6 ? 0.4 : 0));
+                canvas.setScaleY(canvas.getScaleY() - (currentScale - 0.4 > 0.6 ? 0.4 : 0));
                 currentScale = canvas.getScaleX();
+                rescaleDrawCursor(currentScale);
             }
         });
 
         g.setOnScroll((ScrollEvent event) -> {
             if((currentScale < 10 && event.getDeltaY() > 0) || (currentScale > 0.6 && event.getDeltaY() < 0)){
-                canvas.setScaleX(canvas.getScaleX() + (event.getDeltaY() < 0 ? -0.05 : 0.05));
+                canvas.setScaleX(canvas.getScaleX() + (event.getDeltaY() < 0 ? -0.1 : 0.1));
                 canvas.setScaleY(canvas.getScaleX());
                 currentScale = canvas.getScaleX();
                 rescaleDrawCursor(currentScale);
@@ -504,10 +507,12 @@ public class Main extends Application {
             cursorNode.setTranslateX(e.getSceneX() - cImgWidth/2);
             cursorNode.setTranslateY(e.getSceneY() - cImgHeight/2);
             gc.fillOval(e.getX() - cImgWidth/2, e.getY() - cImgHeight/2, cImgWidth, cImgHeight);
-        }else{
-            hideDrawCursor();
+        }else if (eyedropperMode){
+            int tempInt = tempPR.getArgb((int)(e.getX() * currentScale), (int)(e.getY() * currentScale));
+            colorPicker.setValue(Color.rgb(((tempInt >> 16) & 0xff), ((tempInt >> 8) & 0xff), (tempInt & 0xff)));
         }
-            e.consume();
+        hideDrawCursor();
+        e.consume();
         });
     }
 
@@ -531,8 +536,8 @@ public class Main extends Application {
             else if(isEyedropperMode()){
                 WritableImage img = new WritableImage((int)canvasWidth, (int)canvasHeight);
                 canvas.snapshot(new SnapshotParameters(), img);
-                PixelReader temp = img.getPixelReader();
-                int tempInt = temp.getArgb((int)(e.getX()), (int)(e.getY()));
+                tempPR = img.getPixelReader();
+                int tempInt = tempPR.getArgb((int)(e.getX() * currentScale), (int)(e.getY() * currentScale));
                 colorPicker.setValue(Color.rgb(((tempInt >> 16) & 0xff), ((tempInt >> 8) & 0xff), (tempInt & 0xff)));
             }
             e.consume();

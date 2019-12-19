@@ -41,6 +41,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.shape.StrokeLineJoin;
 import javafx.stage.Stage;
 import position.Delta;
 
@@ -55,12 +57,16 @@ public class Main extends Application {
 
     private double pressedX, pressedY;
     private boolean isPressed = false;
+    private boolean stampSelection;
+    private WritableImage currentStampSelection;
+    private double stampSourceX, stampSourceY;
     private boolean panMode = false, tempPanMode = false;
     private boolean drawMode = false;
     private boolean eyedropperMode = false;
+    private boolean stampMode = false;
 
     private ColorPicker colorPicker = new ColorPicker();
-    private Button drawModeButton, panModeButton, eyedropperModeButton;
+    private Button drawModeButton, panModeButton, eyedropperModeButton, stampModeButton;
     private PixelReader tempPR;
 
     private double currentScale = 1;
@@ -88,10 +94,12 @@ public class Main extends Application {
         makePannable(root, gc);
         makeZoomable(root, canvas);
         makeDrawable(root, canvas);
+        initStampMode(root);
         initTaskBar(taskBar, gc);
         initToolBar(toolBar, gc);
         initCanvasDragListener(canvas);
         initCanvasPressedListener(canvas);
+        initCanvasReleasedListener(canvas);
         initSaving(root, canvas);
         root.getChildren().addAll(canvas, toolBar, taskBar, cursorNode);
         stage.setTitle("Photo");
@@ -218,7 +226,22 @@ public class Main extends Application {
             eventTriggered();
         });
 
-        toolBar.getChildren().addAll(handle, panModeButton, drawModeButton, eyedropperModeButton);
+        stampModeButton = new Button();
+        styleButton(stampModeButton, "src\\resource\\brush.png", 0, 0, 22, 25);
+        stampModeButton.setOnMousePressed(e -> {
+            if(stampMode){
+                setAllModesFalse();
+                gc.getCanvas().setCursor(Cursor.DEFAULT);
+            }
+            else{
+                setAllModesFalse();
+                stampMode = true;
+                gc.getCanvas().setCursor(Cursor.CROSSHAIR);
+            }
+            eventTriggered();
+        });
+
+        toolBar.getChildren().addAll(handle, panModeButton, drawModeButton, eyedropperModeButton, stampModeButton);
         
     }
 
@@ -235,9 +258,13 @@ public class Main extends Application {
     }
 
     private void resizeDrawCursor(boolean increase){  // true = increase false = decrease
-        if (increase)
+        if(!increase && cImgWidth <= 3){
+            cImgWidth = 1;
+            cImgHeight = 1;
+        }
+        if (increase && cImgWidth != 1)
             cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth+=3, cImgHeight+=3, false, false);
-        else    
+        else if(cImgWidth != 1)    
             cImg = new Image("src\\resource\\scalable_circle.png", cImgWidth-=3, cImgHeight-=3, false, false);
         cursorNode.setImage(cImg);
     }
@@ -269,6 +296,7 @@ public class Main extends Application {
         panMode = false;
         drawMode = false;
         eyedropperMode = false;
+        stampMode = false;
     }
 
     private boolean allModesFalse(){
@@ -425,23 +453,14 @@ public class Main extends Application {
                 if(isDrawingMode()){
                     showDrawCursor();
                     canvas.setCursor(Cursor.CROSSHAIR);
-                    
                 }
+                else if (isEyedropperMode())
+                    canvas.setCursor(Cursor.CROSSHAIR);
             }
         });
 
 
-        canvas.setOnMouseReleased(new EventHandler<MouseEvent>()
-        {
-            public void handle(MouseEvent event)
-            {
-                if(isPanningMode()){
-                    isPressed = false;
-                    canvas.setCursor(Cursor.HAND);
-                }
-                event.consume();
-            }
-        });
+        
     }
 
     private void makeDrawable(Group root, Canvas canvas){
@@ -456,6 +475,8 @@ public class Main extends Application {
                 if(isDrawingMode()){
                     showDrawCursor();
                     resizeDrawCursor(true);
+                    cursorNode.setTranslateX(cursorNode.getTranslateX() - 1.5);
+                    cursorNode.setTranslateY(cursorNode.getTranslateY() - 1.5);
                 }
             }
         });
@@ -465,6 +486,8 @@ public class Main extends Application {
                 if(isDrawingMode()){
                     showDrawCursor();
                     resizeDrawCursor(false);
+                    cursorNode.setTranslateX(cursorNode.getTranslateX() + 1.5);
+                    cursorNode.setTranslateY(cursorNode.getTranslateY() + 1.5);
                 }
             }
         });
@@ -482,17 +505,24 @@ public class Main extends Application {
 
     private void saveImage(Canvas canvas){
         WritableImage bounds = new WritableImage((int)imgWidth, (int)imgHeight);
-        System.out.println(imgWidth + "  " + imgHeight);
         SnapshotParameters sp = new SnapshotParameters();
-        System.out.println(canvas.getLayoutX() + " " + canvas.getLayoutY());
         sp.setViewport(new Rectangle2D(canvas.getLayoutX() + canvas.getTranslateX() + imgWidth/2 + (imgWidth < imgHeight ? imgHeight - imgWidth : 0), canvas.getLayoutY() + canvas.getTranslateY()+ imgHeight/2 + (imgWidth > imgHeight ? imgWidth - imgHeight : 0), imgWidth/2, imgHeight));
-        System.out.println(currentScale);
         WritableImage snapshot = canvas.snapshot(sp, bounds);
         try{
             ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", new File(System.getProperty("user.dir") + "\\test.png"));
         }catch(Exception e){  
             e.printStackTrace();
         }
+    }
+
+    private void initStampMode(Group root){
+        root.addEventFilter(KeyEvent.KEY_PRESSED, event->{
+            if (event.getCode() == KeyCode.ALT) {
+                if(isStampMode()){
+                    stampSelection = true;
+                }
+            }
+        });
     }
 
     private void initCanvasDragListener(Canvas canvas){
@@ -506,10 +536,18 @@ public class Main extends Application {
             showDrawCursor();
             cursorNode.setTranslateX(e.getSceneX() - cImgWidth/2);
             cursorNode.setTranslateY(e.getSceneY() - cImgHeight/2);
-            gc.fillOval(e.getX() - cImgWidth/2, e.getY() - cImgHeight/2, cImgWidth, cImgHeight);
+            gc.lineTo(e.getX(), e.getY());
+            gc.stroke();
+            gc.closePath();
+            gc.beginPath();
+            //gc.fillOval(e.getX() - cImgWidth/2, e.getY() - cImgHeight/2, cImgWidth, cImgHeight);
         }else if (eyedropperMode){
             int tempInt = tempPR.getArgb((int)(e.getX() * currentScale), (int)(e.getY() * currentScale));
             colorPicker.setValue(Color.rgb(((tempInt >> 16) & 0xff), ((tempInt >> 8) & 0xff), (tempInt & 0xff)));
+        }else if (stampMode){
+            gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage(600, 400, 200, 200), null), e.getX() - 10, e.getY() - 10);
+            //gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)stampSourceX, (int)stampSourceY, 20, 20), null), e.getX() - 10, e.getY() - 10);
+            //gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)(stampSourceX - 10 - imgWidth), (int)(stampSourceY - 10 - imgWidth), (int)(stampSourceX + 10 - imgWidth), (int)(stampSourceY + 10 - imgWidth)), null), e.getX() - 10, e.getY() - 10);
         }
         hideDrawCursor();
         e.consume();
@@ -528,10 +566,16 @@ public class Main extends Application {
             }
             else if(isDrawingMode()){
                 showDrawCursor();
-                gc.setFill(colorPicker.getValue());
                 cursorNode.setTranslateX(e.getSceneX() - cImgWidth/2);
                 cursorNode.setTranslateY(e.getSceneY() - cImgHeight/2);
-                gc.fillOval(e.getX() - cImgWidth/2, e.getY() - cImgHeight/2, cImgWidth, cImgHeight);
+                gc.setStroke(colorPicker.getValue());
+                gc.setLineCap(StrokeLineCap.ROUND);
+                gc.setLineJoin(StrokeLineJoin.ROUND);
+                gc.setLineWidth(cImgHeight);
+                gc.beginPath();
+                gc.lineTo(e.getX(), e.getY());
+                gc.stroke();
+                //gc.fillOval(e.getX() - cImgWidth/2, e.getY() - cImgHeight/2, cImgWidth, cImgHeight);
             }
             else if(isEyedropperMode()){
                 WritableImage img = new WritableImage((int)canvasWidth, (int)canvasHeight);
@@ -540,6 +584,52 @@ public class Main extends Application {
                 int tempInt = tempPR.getArgb((int)(e.getX() * currentScale), (int)(e.getY() * currentScale));
                 colorPicker.setValue(Color.rgb(((tempInt >> 16) & 0xff), ((tempInt >> 8) & 0xff), (tempInt & 0xff)));
             }
+            else if(isStampMode()){
+                if(stampSelection){
+                    stampSelection = false;
+                    // SnapshotParameters sp = new SnapshotParameters();
+                    // sp.setViewport(new Rectangle2D(e.getSceneX() - 10, e.getSceneY() - 10, e.getSceneX() + 10, e.getSceneY() + 10));  //hard-coded
+                    // WritableImage bounds = new WritableImage(20, 20);                                                                   //hard-coded
+                    // currentStampSelection = canvas.snapshot(sp, bounds); 
+
+                    //WritableImage bounds = new WritableImage((int)imgWidth, (int)imgHeight);
+                    WritableImage bounds = new WritableImage((int)canvasWidth, (int)canvasHeight);
+
+                    SnapshotParameters sp = new SnapshotParameters();
+                    //sp.setViewport(new Rectangle2D(canvas.getLayoutX() + canvas.getTranslateX() + imgWidth/2 + (imgWidth < imgHeight ? imgHeight - imgWidth : 0), canvas.getLayoutY() + canvas.getTranslateY()+ imgHeight/2 + (imgWidth > imgHeight ? imgWidth - imgHeight : 0), imgWidth/2, imgHeight));
+                    WritableImage snapshot = canvas.snapshot(sp, bounds);
+                   // gc.drawImage(snapshot, canvas.getTranslateX(), canvas.getTranslateY());
+                    bImg = SwingFXUtils.fromFXImage(snapshot, null);
+                    stampSourceX = e.getX();
+                    stampSourceY = e.getY();
+                    System.out.println(stampSourceX + ", " + stampSourceY);
+                }
+                else if (!stampSelection){
+                    gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)stampSourceX, (int)stampSourceY, 200, 200), null), e.getX() - 10, e.getY() - 10);
+                    //gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)(stampSourceX - 10), (int)(stampSourceY - 10), (int)(stampSourceX + 10), (int)(stampSourceY + 10)), null), e.getX() - 10, e.getY() - 10);
+                }
+            }
+            e.consume();
+        });
+    }
+
+    private void initCanvasReleasedListener(Canvas canvas){
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        canvas.setOnMouseReleased(e -> {
+            eventTriggered();
+            if(isPanningMode()){
+                isPressed = false;
+                canvas.setCursor(Cursor.HAND);
+            }
+            else if(isDrawingMode()){
+                cursorNode.setTranslateX(e.getSceneX() - cImgWidth/2);
+                cursorNode.setTranslateY(e.getSceneY() - cImgHeight/2);
+                gc.lineTo(e.getX(), e.getY());
+                gc.stroke();
+                gc.closePath();
+                //gc.fillOval(e.getX() - cImgWidth/2, e.getY() - cImgHeight/2, cImgWidth, cImgHeight);
+            }
+            
             e.consume();
         });
     }
@@ -565,10 +655,15 @@ public class Main extends Application {
         return eyedropperMode;
     }
 
+    private boolean isStampMode(){
+        return stampMode;
+    }
+
     private void eventTriggered(){
         drawModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
         panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
         eyedropperModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
+        stampModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
 
         if (isPanningMode()){
             panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
@@ -578,5 +673,7 @@ public class Main extends Application {
 
         else if(isEyedropperMode())
             eyedropperModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
+        else if(isStampMode())
+            stampModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
     }
 }

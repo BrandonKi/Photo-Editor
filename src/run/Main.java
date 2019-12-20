@@ -1,6 +1,7 @@
 package src.run;
 
 import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -76,7 +77,7 @@ public class Main extends Application {
 
     public void start(final Stage stage) {
 
-        String imgName = "test3.jpg";
+        String imgName = "test2.jpg";
  
         Group root = new Group();
         
@@ -545,9 +546,14 @@ public class Main extends Application {
             int tempInt = tempPR.getArgb((int)(e.getX() * currentScale), (int)(e.getY() * currentScale));
             colorPicker.setValue(Color.rgb(((tempInt >> 16) & 0xff), ((tempInt >> 8) & 0xff), (tempInt & 0xff)));
         }else if (stampMode){
-            gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage(600, 400, 200, 200), null), e.getX() - 10, e.getY() - 10);
-            //gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)stampSourceX, (int)stampSourceY, 20, 20), null), e.getX() - 10, e.getY() - 10);
-            //gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)(stampSourceX - 10 - imgWidth), (int)(stampSourceY - 10 - imgWidth), (int)(stampSourceX + 10 - imgWidth), (int)(stampSourceY + 10 - imgWidth)), null), e.getX() - 10, e.getY() - 10);
+            BufferedImage cropped = new BufferedImage(
+                        (int) imgWidth - 20,
+                        (int) imgHeight - 20,
+                        bImg.getType());
+                    Graphics g = cropped.getGraphics();
+                    g.drawImage(bImg, -20, -20, null);
+                    g.dispose();
+                    gc.drawImage(SwingFXUtils.toFXImage(cropped, null), e.getX() - 10, e.getY() - 10);
         }
         hideDrawCursor();
         e.consume();
@@ -593,20 +599,25 @@ public class Main extends Application {
                     // currentStampSelection = canvas.snapshot(sp, bounds); 
 
                     //WritableImage bounds = new WritableImage((int)imgWidth, (int)imgHeight);
-                    WritableImage bounds = new WritableImage((int)canvasWidth, (int)canvasHeight);
+                    WritableImage bounds = new WritableImage((int)imgWidth, (int)imgHeight);
 
                     SnapshotParameters sp = new SnapshotParameters();
-                    //sp.setViewport(new Rectangle2D(canvas.getLayoutX() + canvas.getTranslateX() + imgWidth/2 + (imgWidth < imgHeight ? imgHeight - imgWidth : 0), canvas.getLayoutY() + canvas.getTranslateY()+ imgHeight/2 + (imgWidth > imgHeight ? imgWidth - imgHeight : 0), imgWidth/2, imgHeight));
+                    sp.setViewport(new Rectangle2D(canvas.getLayoutX() + canvas.getTranslateX() + imgWidth/2 + (imgWidth < imgHeight ? imgHeight - imgWidth : 0), canvas.getLayoutY() + canvas.getTranslateY()+ imgHeight/2 + (imgWidth > imgHeight ? imgWidth - imgHeight : 0), imgWidth/2, imgHeight));
                     WritableImage snapshot = canvas.snapshot(sp, bounds);
-                   // gc.drawImage(snapshot, canvas.getTranslateX(), canvas.getTranslateY());
                     bImg = SwingFXUtils.fromFXImage(snapshot, null);
                     stampSourceX = e.getX();
                     stampSourceY = e.getY();
-                    System.out.println(stampSourceX + ", " + stampSourceY);
                 }
                 else if (!stampSelection){
-                    gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)stampSourceX, (int)stampSourceY, 200, 200), null), e.getX() - 10, e.getY() - 10);
-                    //gc.drawImage(SwingFXUtils.toFXImage(bImg.getSubimage((int)(stampSourceX - 10), (int)(stampSourceY - 10), (int)(stampSourceX + 10), (int)(stampSourceY + 10)), null), e.getX() - 10, e.getY() - 10);
+                    BufferedImage cropped = new BufferedImage(
+                        (int) 20,
+                        (int) 20,
+                        bImg.getType());
+                    Graphics g = cropped.getGraphics();
+                    g.drawImage(bImg, (int)(20 - imgWidth), (int)(20 - imgHeight), null);
+                    g.dispose();
+                    gc.drawImage(SwingFXUtils.toFXImage(cropped, null), e.getX() - 10, e.getY() - 10);
+                    
                 }
             }
             e.consume();
@@ -665,12 +676,10 @@ public class Main extends Application {
         eyedropperModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
         stampModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(40, 40, 40), CornerRadii.EMPTY, Insets.EMPTY)));
 
-        if (isPanningMode()){
-            panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
-        }      
+        if (isPanningMode())
+            panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));  
         if(isDrawingMode())
             drawModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
-
         else if(isEyedropperMode())
             eyedropperModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
         else if(isStampMode())

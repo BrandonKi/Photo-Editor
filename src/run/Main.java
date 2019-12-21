@@ -129,6 +129,7 @@ public class Main extends Application {
         cursorNode.setMouseTransparent(true);
         cursorNode.toFront();
         cursorNode.setFocusTraversable(false);
+        cursorNode.setVisible(false);
         cursorNode.setLayoutX(0);
         cursorNode.setLayoutY(0);
         cImgWidth = cImg.getWidth();
@@ -546,14 +547,11 @@ public class Main extends Application {
             int tempInt = tempPR.getArgb((int)(e.getX() * currentScale), (int)(e.getY() * currentScale));
             colorPicker.setValue(Color.rgb(((tempInt >> 16) & 0xff), ((tempInt >> 8) & 0xff), (tempInt & 0xff)));
         }else if (stampMode){
-            BufferedImage cropped = new BufferedImage(
-                        (int) imgWidth - 20,
-                        (int) imgHeight - 20,
-                        bImg.getType());
-                    Graphics g = cropped.getGraphics();
-                    g.drawImage(bImg, -20, -20, null);
-                    g.dispose();
-                    gc.drawImage(SwingFXUtils.toFXImage(cropped, null), e.getX() - 10, e.getY() - 10);
+            BufferedImage cropped = new BufferedImage((int) 20, (int) 20, bImg.getType());
+            Graphics g = cropped.getGraphics();
+            g.drawImage(bImg, (int)(-(stampSourceX + (e.getX() - stampSourceX))), (int)(-(stampSourceY + (e.getX() - stampSourceY))), null);
+            g.dispose();
+            gc.drawImage(SwingFXUtils.toFXImage(cropped, null), e.getX() - 10, e.getY() - 10);
         }
         hideDrawCursor();
         e.consume();
@@ -607,17 +605,15 @@ public class Main extends Application {
                     bImg = SwingFXUtils.fromFXImage(snapshot, null);
                     stampSourceX = e.getX();
                     stampSourceY = e.getY();
+                    stampSourceX -= imgWidth/2;
+                    stampSourceY -= imgWidth;
                 }
                 else if (!stampSelection){
-                    BufferedImage cropped = new BufferedImage(
-                        (int) 20,
-                        (int) 20,
-                        bImg.getType());
+                    BufferedImage cropped = new BufferedImage((int) 20, (int) 20, bImg.getType());
                     Graphics g = cropped.getGraphics();
-                    g.drawImage(bImg, (int)(20 - imgWidth), (int)(20 - imgHeight), null);
+                    g.drawImage(bImg, (int)(-(stampSourceX + (e.getX() - stampSourceX))), (int)(-(stampSourceY + (e.getX() - stampSourceY))), null);
                     g.dispose();
                     gc.drawImage(SwingFXUtils.toFXImage(cropped, null), e.getX() - 10, e.getY() - 10);
-                    
                 }
             }
             e.consume();

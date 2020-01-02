@@ -10,12 +10,10 @@ import javax.imageio.ImageIO;
 
 import javafx.application.Application;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
-import javafx.scene.ImageCursor;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
@@ -31,7 +29,6 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
@@ -73,7 +70,7 @@ public class Main extends Application {
     private double currentScale = 1;
     private double imgWidth, imgHeight;
     private double canvasWidth, canvasHeight;
-    //private int preScale = 1; never again
+    //private int preScale = 4; never again
 
     public void start(final Stage stage) {
 
@@ -674,11 +671,11 @@ public class Main extends Application {
 
         if (isPanningMode())
             panModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));  
-        if(isDrawingMode())
+        if  (isDrawingMode())
             drawModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
-        else if(isEyedropperMode())
+        else if (isEyedropperMode())
             eyedropperModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
-        else if(isStampMode())
+        else if (isStampMode())
             stampModeButton.setBackground(new Background(new BackgroundFill(Color.rgb(100, 100, 100), new CornerRadii(10), Insets.EMPTY)));
     }
 }
